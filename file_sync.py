@@ -1,5 +1,4 @@
 import argparse # to parse command line arguments
-import os # to interact with the operating system
 import shutil
 import time
 import logging
@@ -8,6 +7,7 @@ import hashlib # to compute MD5 hash
 
 def setup_log(log_file):
     """Set up logging to file and console."""
+    log_file.parent.mkdir(parents=True, exist_ok=True) # making sure log folder exists BEFORE setting up logging
     logging.basicConfig(
         level=logging.INFO, # records general info about the program (saves or deletions)
         format="%(asctime)s - %(levelname)s - %(message)s", # defines log message format: date and time, log level, and message
@@ -28,14 +28,15 @@ def get_md5(file_path):
 def sync_folders(og_folder, cp_folder):
     """Synchronize original folder with replica."""
     og_folder = Path(og_folder)
-    cp_folder = Path(cp_folder)
+    cp_folder = Path(cp_folder) 
+
 
     if not og_folder.exists(): # ensure source folder exists
         logging.error(f"Source folder does not exist: {og_folder}")
         return 
     
     if not cp_folder.exists(): # create a replica file if one does not exist yet
-        os.makedirs(cp_folder)
+        Path(cp_folder).mkdir(parents=True, exist_ok=True)
         logging.info(f"Created replica folder: {cp_folder}")
 
     # Copy new and modified files
@@ -66,21 +67,29 @@ def sync_folders(og_folder, cp_folder):
 def main():
     """
     example:
-    python filename.py /path/to/original /path/to/replica 60 /path/to/log.txt
+    python filename.py /path/to/original /path/to/where_you_want_the_replica 60 
 
     """
     parser = argparse.ArgumentParser(description="Folder Synchronization Tool") # Creates a command-line parser for handling user input
     parser.add_argument("source", help="Path to source folder")
     parser.add_argument("replica", help="Path to replica folder")
     parser.add_argument("interval", type=int, help="Synchronization interval in seconds")
-    parser.add_argument("log_file", help="Path to log file")
 
     args = parser.parse_args()
-    setup_log(args.log_file) # ensures all events are recorded
 
+    source_folder = Path(args.source)
+    parent_folder = Path(args.replica)  
+
+    replica_folder = parent_folder / f"{source_folder.name}_copy"
+
+    log_file = replica_folder / "log.txt"
+
+    replica_folder.mkdir(parents=True, exist_ok=True) # Ensure the replica folder exists
+  
+    setup_log(log_file)  # Initialize logging inside the correct directory
     logging.info("Starting folder synchronization...")
     while True:
-        sync_folders(args.source, args.replica)
+        sync_folders(source_folder, replica_folder)
         logging.info("Synchronization completed. Waiting for next cycle...")
         time.sleep(args.interval) # repeating sync every *interval* seconds
 
